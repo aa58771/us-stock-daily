@@ -1,1 +1,0 @@
-# US Stock Daily
