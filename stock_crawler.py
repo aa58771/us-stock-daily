@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""US Stock Daily Crawler - 57 Tickers + News"""
+"""US Stock Daily - 57 Tickers + AI News via Felo"""
 import os, requests, time
 from datetime import datetime
 
 STOCKS = ["ADBE","FISV","AMZN","CHYM","VKTX","FIG","ONDS","EOSE","NVTS","IGV","U","SNOW","NBIS","IREN","CRWV","PLTR","MSFT","FCX","TSLA","SMR","AVGO","ORCL","SE","MRVL","LEU","CELH","OKLO","NU","TSM","RBRK","CAVA","ACVA","GRAB","BROS","TMDX","KLAR","CRM","GLW","NFLX","KTOS","VRT","VST","CRDO","CDLR","S","AMD","GOOG","NVDA","ALAB","OSCR","PYPL","BYRN","IOT","GLXY","CAN","BRZE","GSHD"]
 
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
+FELO_API_KEY = os.environ.get("FELO_API_KEY", "")
 
 def get_stock(symbol):
     try:
@@ -18,21 +19,34 @@ def get_stock(symbol):
     except: pass
     return {"s":symbol,"ok":0}
 
-def get_news():
-    """Get key market news"""
-    news = []
+def get_felo_news(query):
+    """Get AI-powered news via Felo API"""
+    if not FELO_API_KEY:
+        return []
+    
     try:
-        # Yahoo Finance news
-        r = requests.get("https://newsapi.org/v2/top-headlines?category=business&country=us&apiKey=demo", timeout=5)
-        if r.status_code == 200:
-            data = r.json()
-            for article in data.get("articles", [])[:3]:
-                title = article.get("title", "")
-                if title and len(title) < 100:
-                    news.append(f"📰 {title}")
-    except:
-        pass
-    return news
+        url = "https://api.felo.ai/v2/chat"
+        headers = {
+            "Authorization": f"Bearer {FELO_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": "gpt-4o-mini",
+            "messages": [
+                {"role": "user", "content": f"Search for latest {query} news today. Give me 3 short headlines with sources."}
+            ],
+            "search": True,
+            "stream": False
+        }
+        resp = requests.post(url, json=data, headers=headers, timeout=30)
+        if resp.status_code == 200:
+            result = resp.json()
+            # Extract content from Felo response
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return content.split("\n")[:3] if content else []
+    except Exception as e:
+        print(f"Felo error: {e}")
+    return []
 
 def main():
     print(f"Fetching {len(STOCKS)} stocks...")
@@ -43,37 +57,32 @@ def main():
     now = datetime.now().strftime("%m/%d %H:%M")
     msg = f"📈 **US Stock Daily** - {now}\n"
     msg += "```\n"
-    
-    # Header
     msg += f"{'Ticker':<8} {'Price':>10} {'Change':>10} {'%':>8}\n"
     msg += "-"*40 + "\n"
     
-    # All stocks (compact)
     for r in ok:
         sign = "+" if r["cp"] > 0 else ""
         msg += f"{r['s']:<8} ${r['p']:>9.2f} {sign}{r['c']:>8.2f} {sign}{r['cp']:>6.2f}%\n"
     
     msg += "```\n"
     
-    # Summary
     gain = [r for r in ok if r["cp"]>0]
     loss = [r for r in ok if r["cp"]<0]
     msg += f"📊 **Summary:** {len(gain)} ▲ | {len(loss)} ▼\n"
     
-    # Top gainers
     if gain[:3]:
         msg += "🟢 **Top Gainers:** " + ", ".join([f"{r['s']} +{r['cp']}%" for r in gain[:3]]) + "\n"
-    
-    # Top losers  
     if loss[-3:]:
         msg += "🔴 **Top Losers:** " + ", ".join([f"{r['s']} {r['cp']}%" for r in loss[-3:]]) + "\n"
     
-    # News
-    news = get_news()
-    if news:
-        msg += "\n📰 **Market News:**\n" + "\n".join(news)
+    # Get AI news
+    if FELO_API_KEY:
+        msg += "\n🤖 **AI Market News:**\n"
+        news = get_felo_news("US stock market today")
+        for n in news:
+            if n.strip():
+                msg += n.strip()[:200] + "\n"
     
-    # Send
     if len(msg) <= 2000 and WEBHOOK_URL:
         try:
             requests.post(WEBHOOK_URL, json={"content":msg}, timeout=10)
