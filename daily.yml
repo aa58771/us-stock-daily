@@ -1,1 +1,29 @@
-bmFtZTogVVMgU3RvY2sgRGFpbHkgQ3Jhd2xlcgoKb246CiAgc2NoZWR1bGU6CiAgICAjIFJ1biBhdCA4IEFNIFRhaXdhbiB0aW1lIGRhaWx5IChVVEMgMDA6MDApCiAgICAtIGNyb246ICcwIDAgKiAqIConCiAgd29ya2Zsb3dfZGlzcGF0Y2g6Cgpqb2JzOgogIGNyYXdsLWFuZC1zZW5kOgogICAgcnVucy1vbjogdWJ1bnR1LWxhdGVzdAogICAgCiAgICBzdGVwczoKICAgICAgLSBuYW1lOiBDaGVja291dCBjb2RlCiAgICAgICAgdXNlczogYWN0aW9ucy9jaGVja291dEB2NAogICAgICAKICAgICAgLSBuYW1lOiBTZXQgdXAgUHl0aG9uCiAgICAgICAgdXNlczogYWN0aW9ucy9zZXR1cC1weXRob25AdjUKICAgICAgICB3aXRoOgogICAgICAgICAgcHl0aG9uLXZlcnNpb246ICczLjExJwogICAgICAKICAgICAgLSBuYW1lOiBJbnN0YWxsIGRlcGVuZGVuY2llcwogICAgICAgIHJ1bjogfAogICAgICAgICAgcGlwIGluc3RhbGwgLXIgcmVxdWlyZW1lbnRzLnR4dAogICAgICAKICAgICAgLSBuYW1lOiBSdW4gc3RvY2sgY3Jhd2xlcgogICAgICAgIGVudjoKICAgICAgICAgIERJU0NPUkRfV0VCSE9PS19VUkw6ICR7eyBzZWNyZXRzLkRJU0NPUkRfV0VCSE9PS19VUkwgfX0KICAgICAgICBydW46IHB5dGhvbiBzdG9ja19jcmF3bGVyLnB5Cg==
+name: US Stock Daily Crawler
+
+on:
+  schedule:
+    # Run at 8 AM Taiwan time daily (UTC 00:00)
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  crawl-and-send:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run stock crawler
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python stock_crawler.py
