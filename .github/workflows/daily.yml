@@ -11,7 +11,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Debug secret
+        run: |
+          echo "Secret length: ${#DISCORD_WEBHOOK_URL}"
+          echo "Secret first 10 chars: ${DISCORD_WEBHOOK_URL:0:10}"
       - run: pip install -r requirements.txt
       - run: python stock_crawler.py
         env:
-          DISCORD_WEBHOOK_URL: \${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
